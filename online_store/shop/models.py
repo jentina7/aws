@@ -33,6 +33,7 @@ class Product(models.Model):
     date = models.DateField(auto_now=True)
     active = models.BooleanField(default=True)
     product_video = models.FileField(verbose_name="Видео", null=True, blank=True)
+    owner = models.ForeignKey(UserProfile, on_delete=models.CASCADE, null=True, blank=True)
 
     def __str__(self):
         return self.product_name
@@ -65,3 +66,25 @@ class Review(models.Model):
 
     def __str__(self):
         return f"{self.author} - {self.product}"
+
+
+class Cart(models.Model):
+    user = models.OneToOneField(UserProfile, on_delete=models.CASCADE, related_name="cart")
+    create_date = models.DateTimeField(auto_now_add=True)
+
+
+    def __str__(self):
+        return f"{self.user}"
+
+    def get_total_price(self):
+        return sum(item.get_total_price() for item in self.items.all())
+
+
+class CartItem(models.Model):
+    cart = models.ForeignKey(Cart, related_name="items", on_delete=models.CASCADE)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    quantity = models.PositiveSmallIntegerField(default=1)
+
+
+    def get_total_price(self):
+        return self.product.price * self.quantity

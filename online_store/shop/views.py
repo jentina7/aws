@@ -1,4 +1,5 @@
 from audioop import reverse
+from venv import create
 
 from django.http import HttpResponseRedirect
 from rest_framework import  viewsets, status, generics
@@ -12,6 +13,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 from .filters import ProductFilter
 from .models import models
+from .permissions import CheckOwner
 
 
 class RegisterView(generics.CreateAPIView):
@@ -73,6 +75,11 @@ class ProductViewSet(viewsets.ModelViewSet):
     filterset_class = ProductFilter
     search_fields = ["product_name"]
     ordering_fields = ["price", "date"]
+    permission_classes = [CheckOwner]
+
+
+    def peform_create(self,serializer):
+        serializer.save(owner=self.request.user)
 
 class ProductPhotosViewSet(viewsets.ModelViewSet):
     queryset = ProductPhotos.objects.all()
@@ -85,3 +92,24 @@ class RatingViewSet(viewsets.ModelViewSet):
 class ReviewViewSet(viewsets.ModelViewSet):
     queryset = Review.objects.all()
     serializer_class = ReviewSerializer
+
+class CartViewSet(viewsets.ModelViewSet):
+    serializer_class = CartSerializer
+
+    def get_queryset(self):
+        return Cart.objects.filter(user=self.request.user)
+
+    def retrieve(self, request, *args, **kwargs):
+        cart, created = Cart.objects.get_or_create(user=request.user)
+        serializer = self.get_serializer(cart)
+        return Response(serializer.data)
+
+class CartItemViewSet(viewsets.ModelViewSet):
+    serializer_class = CartItemSerializer
+
+    def get_queryset(self):
+        return CartItem.objects.filter(cart_user=self.request.user)
+
+    def perform_create(self, serializer):
+        cart, created = Cart.objects.get_or_create(user=self.request.user)
+        serializer.save(cart=cart)
